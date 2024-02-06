@@ -6,7 +6,8 @@ import com.google.gson.JsonParser;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.*;
+import java.util.Map;
+import java.util.TreeMap;
 
 public class Differ {
 
@@ -19,10 +20,9 @@ public class Differ {
 
             if (json2.has(key)) {
                 if (!json2.get(key).equals(value)) {
-                    resultMap.put(key, "- " + key + ": " + value + System.lineSeparator() +
-                            "+ " + key + ": " + json2.get(key) + System.lineSeparator());
-                }
-                else {
+                    resultMap.put(key, "- " + key + ": " + value + System.lineSeparator()
+                            + "+ " + key + ": " + json2.get(key) + System.lineSeparator());
+                } else {
                     resultMap.put(key, "  " + key + ": " + value + System.lineSeparator());
                 }
             } else {
