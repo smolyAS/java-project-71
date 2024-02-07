@@ -11,7 +11,7 @@ import java.util.TreeMap;
 
 public class Differ {
 
-    public static String generateDiff(JsonObject json1, JsonObject json2) {
+    public static String generateDiff(JsonObject json1, JsonObject json2, String format) {
         Map<String, String> resultMap = new TreeMap<>();
 
         for (Map.Entry<String, JsonElement> entry : json1.entrySet()) {
@@ -44,10 +44,20 @@ public class Differ {
             diffOutput.append(diffLine);
         }
 
-        return diffOutput.toString();
+        if ("stylish".equals(format)) {
+            return diffOutput.toString();
+        } else if ("json".equals(format)) {
+            JsonObject diffObj = new JsonObject();
+            for (Map.Entry<String, String> entry : resultMap.entrySet()) {
+                diffObj.addProperty(entry.getKey(), entry.getValue());
+            }
+            return diffObj.toString();
+        } else {
+            return "Unsupported format: " + format;
+        }
     }
 
-    public static String generate(String filePath1, String filePath2) {
+    public static String generate(String filePath1, String filePath2, String format) {
         try {
             String content1 = new String(Files.readAllBytes(Paths.get(filePath1)));
             String content2 = new String(Files.readAllBytes(Paths.get(filePath2)));
@@ -55,7 +65,7 @@ public class Differ {
             JsonObject json1 = JsonParser.parseString(content1).getAsJsonObject();
             JsonObject json2 = JsonParser.parseString(content2).getAsJsonObject();
 
-            return generateDiff(json1, json2);
+            return generateDiff(json1, json2, format);
         } catch (IOException e) {
             System.err.println("Error reading files: " + e.getMessage());
             return null;
