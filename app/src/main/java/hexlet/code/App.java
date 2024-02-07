@@ -30,8 +30,11 @@ public class App implements Runnable {
 
     @Override
     public void run() {
-        String result = null;
-        result = Differ.generate(filePath1, filePath2, format);
-        System.out.println(result);
+        if (filePath1 != null && filePath2 != null) {
+            String result = Differ.generate(filePath1, filePath2, format);
+            System.out.println(result);
+        } else {
+            System.out.println("Please provide file paths for comparison.");
+        }
     }
 }
