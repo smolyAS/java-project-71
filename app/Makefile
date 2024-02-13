@@ -5,7 +5,7 @@ setup:
 	./gradlew wrapper --gradle-version 8.5
 
 .DEFAULT_GOAL := build-run
-
+ls
 clean:
 	./gradlew clean
 
