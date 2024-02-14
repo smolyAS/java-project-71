@@ -2,56 +2,75 @@ package hexlet.code;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.dataformat.yaml.YAMLFactory;
 import java.io.File;
-import java.io.IOException;
+import java.util.Map;
+import java.util.LinkedHashMap;
 import java.util.Iterator;
-
+import java.util.TreeMap;
 
 public class YamlDiffer {
 
-    public static String generate(String filePath1, String filePath2, String format) {
+    public static JsonNode generate(String filePath) {
         try {
             ObjectMapper mapper = new ObjectMapper(new YAMLFactory());
-            JsonNode yaml1Data = mapper.readTree(new File(filePath1));
-            JsonNode yaml2Data = mapper.readTree(new File(filePath2));
-
-            String diff = generateDiff(yaml1Data, yaml2Data);
-
-            return diff;  // Возвращаем строку с различиями
-        } catch (IOException e) {
-            System.err.println("Error reading files: " + e.getMessage());
+            return mapper.readTree(new File(filePath));
+        } catch (Exception e) {
+            e.printStackTrace();
             return null;
         }
     }
 
-    public static String generateDiff(JsonNode node1, JsonNode node2) {
-        ObjectMapper objectMapper = new ObjectMapper();
-        ObjectNode diff = objectMapper.createObjectNode();
-
-        // Генерация diff между node1 и node2
-        // Например, можно рекурсивно обходить структуру и сравнивать значения
-
-        // Пример рекурсивного сравнения json nodes
-        compareNodes(node1, node2, "", diff);
-
-        try {
-            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(diff);
-        } catch (Exception e) {
-            e.printStackTrace();
-        }
-        return "";
+    private static Map<String, Object> convertJsonNodeToMap(JsonNode node) {
+        return new ObjectMapper().convertValue(node, new TypeReference<Map<String, Object>>() { });
     }
 
-    private static void compareNodes(JsonNode node1, JsonNode node2, String path, ObjectNode diff) {
+    private static Map<String, Object> compareNodes(JsonNode node1, JsonNode node2, String path) {
+        Map<String, Object> diff = new LinkedHashMap<>();
+
         if (!node1.equals(node2)) {
-            diff.put(path, "Value in file 1: " + node1 + ", Value in file 2: " + node2);
+            diff.put("- " + path, convertJsonNodeToMap(node1));
+            diff.put("+ " + path, convertJsonNodeToMap(node2));
         } else if (node1.isObject()) {
-            for (Iterator<String> it = node1.fieldNames(); it.hasNext();) {
-                String field = it.next();
-                compareNodes(node1.get(field), node2.get(field), path + "." + field, diff);
+            Iterator<Map.Entry<String, JsonNode>> fields = node1.fields();
+            while (fields.hasNext()) {
+                Map.Entry<String, JsonNode> field = fields.next();
+                String fieldName = field.getKey();
+                JsonNode value1 = field.getValue();
+                JsonNode value2 = node2.get(fieldName);
+                // Рекурсивный вызов для вложенных узлов
+                Map<String, Object> nestedDiff = compareNodes(value1, value2, fieldName);
+                if (!nestedDiff.isEmpty()) {
+                    diff.putAll(nestedDiff);
+                }
             }
         }
+        return diff;
+    }
+
+    public static String generateDiff(JsonNode node1, JsonNode node2) {
+        Map<String, Object> diffMap = compareNodes(node1, node2, "");
+        Map<String, Object> sortedDiffMap = new TreeMap<>(diffMap);
+        return printDiff(sortedDiffMap, "");
+    }
+
+    private static String printDiff(Map<String, Object> diffMap, String indent) {
+        StringBuilder diff = new StringBuilder("{\n");
+        for (Map.Entry<String, Object> entry : diffMap.entrySet()) {
+            String path = entry.getKey();
+            Object value = entry.getValue();
+            if (value instanceof Map) { // Nested Difference
+                diff.append(indent).append(" ").append(path).append(": ");
+                diff.append(printDiff((Map<String, Object>) value, indent + " "));
+            } else { // Leaf Difference
+                if (path.startsWith("-") || path.startsWith("+")) {
+                    diff.append(indent).append(" ").append(path).append(": ").append(value.toString()).append("\n");
+                } else {
+                    diff.append(indent).append(" ").append(path).append(": ").append(value.toString()).append("\n");
+                }
+            }
+        }
+        return diff.append(indent).append("}\n").toString();
     }
 }

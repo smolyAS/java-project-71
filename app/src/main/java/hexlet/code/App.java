@@ -1,4 +1,5 @@
 package hexlet.code;
+import com.fasterxml.jackson.databind.JsonNode;
 import picocli.CommandLine;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -17,10 +18,10 @@ public class App implements Runnable {
     @Option(names = {"-f", "--format"}, description = "output format [default: stylish]")
     private String format = "stylish";
 
-    @Parameters(index = "0", description = "file1.json")
+    @Parameters(index = "0", description = "file1.yml")
     private String filePath1;
 
-    @Parameters(index = "1", description = "file2.json")
+    @Parameters(index = "1", description = "file2.yml")
     private String filePath2;
 
     public static void main(String[] args) {
@@ -30,7 +31,9 @@ public class App implements Runnable {
     @Override
     public void run() {
         if (filePath1 != null && filePath2 != null) {
-            String result = YamlDiffer.generate(filePath1, filePath2, format);
+            JsonNode node1 = YamlDiffer.generate(filePath1);
+            JsonNode node2 = YamlDiffer.generate(filePath2);
+            String result = YamlDiffer.generateDiff(node1, node2);
             System.out.println(result);
         } else {
             System.out.println("Please provide file paths for comparison.");
