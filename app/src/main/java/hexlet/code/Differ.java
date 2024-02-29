@@ -1,73 +1,35 @@
 package hexlet.code;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonParser;
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
+
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
+import static hexlet.code.formatters.Formatter.chooseFormatter;
+import static hexlet.code.FileUtils.getData;
 
 public class Differ {
-
-    public static String generateDiff(JsonObject json1, JsonObject json2, String format) {
-        Map<String, String> resultMap = new TreeMap<>();
-
-        for (Map.Entry<String, JsonElement> entry : json1.entrySet()) {
-            String key = entry.getKey();
-            JsonElement value = entry.getValue();
-
-            if (json2.has(key)) {
-                if (!json2.get(key).equals(value)) {
-                    resultMap.put(key, "- " + key + ": " + value + System.lineSeparator()
-                            + "+ " + key + ": " + json2.get(key) + System.lineSeparator());
-                } else {
-                    resultMap.put(key, "  " + key + ": " + value + System.lineSeparator());
-                }
-            } else {
-                resultMap.put(key, "- " + key + ": " + value + System.lineSeparator());
-            }
-        }
-
-        for (Map.Entry<String, JsonElement> entry : json2.entrySet()) {
-            String key = entry.getKey();
-            JsonElement value = entry.getValue();
-
-            if (!json1.has(key)) {
-                resultMap.put(key, "+ " + key + ": " + value + System.lineSeparator());
-            }
-        }
-
-        StringBuilder diffOutput = new StringBuilder();
-        for (String diffLine : resultMap.values()) {
-            diffOutput.append(diffLine);
-        }
-
-        if ("stylish".equals(format)) {
-            return diffOutput.toString();
-        } else if ("json".equals(format)) {
-            JsonObject diffObj = new JsonObject();
-            for (Map.Entry<String, String> entry : resultMap.entrySet()) {
-                diffObj.addProperty(entry.getKey(), entry.getValue());
-            }
-            return diffObj.toString();
-        } else {
-            return "Unsupported format: " + format;
-        }
+    public static String generate(String filePath1, String filePath2, String formateName) throws Exception {
+        Map<String, DifferValues> differResultData = getDiff(getData(filePath1), getData(filePath2));
+        return chooseFormatter(formateName).format(differResultData);
     }
 
-    public static String generate(String filePath1, String filePath2, String format) {
-        try {
-            String content1 = new String(Files.readAllBytes(Paths.get(filePath1)));
-            String content2 = new String(Files.readAllBytes(Paths.get(filePath2)));
+    public static String generate(String filePath1, String filePath2) throws Exception {
+        return generate(filePath1, filePath2, "stylish");
+    }
 
-            JsonObject json1 = JsonParser.parseString(content1).getAsJsonObject();
-            JsonObject json2 = JsonParser.parseString(content2).getAsJsonObject();
-
-            return generateDiff(json1, json2, format);
-        } catch (IOException e) {
-            System.err.println("Error reading files: " + e.getMessage());
-            return null;
-        }
+    public static Map<String, DifferValues> getDiff(Map<String, Object> dataFile1, Map<String, Object> dataFile2) {
+        return Stream.concat(dataFile1.entrySet().stream(), dataFile2.entrySet().stream())
+                .collect(Collectors.toMap(Map.Entry::getKey, v -> {
+                    if (dataFile1.containsKey(v.getKey()) && !dataFile2.containsKey(v.getKey())) {
+                        return new DifferValues("deleted", dataFile1.get(v.getKey()));
+                    } else if (!dataFile1.containsKey(v.getKey()) && dataFile2.containsKey(v.getKey())) {
+                        return new DifferValues("added", dataFile2.get(v.getKey()));
+                    } else if (Objects.equals(dataFile1.get(v.getKey()), dataFile2.get(v.getKey()))) {
+                        return new DifferValues("unchanged", dataFile1.get(v.getKey()));
+                    } else {
+                        return new DifferValues("changed", dataFile1.get(v.getKey()), dataFile2.get(v.getKey()));
+                    }
+                }, (v1, v2) -> v1, TreeMap::new));
     }
 }
